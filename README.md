@@ -2,7 +2,7 @@
 
 A tiny turn-based dungeon jam game. One floor. Find the exit. Don't die.
 
-**v1-A:** facing + Space bolt, Skulks, Needlers (cardinal LOS), Plasma Fang, Airlock.
+**v1-A:** facing + Space bolt, Skulks, Needlers (cardinal LOS), Plasma Fang, Airlock. Art from Issac 32px pack.
 
 ## Play
 
