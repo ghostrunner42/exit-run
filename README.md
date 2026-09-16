@@ -5,8 +5,7 @@ A tiny turn-based dungeon jam game. One floor. Find the exit. Don't die.
 ## Play
 
 - **Local:** open `index.html` in a browser (needs network once for the Phaser CDN).
-- **GitHub Pages:** enable Pages on `main` / root for this repo.
-- **Raw play:** open https://ghostrunner42.github.io/exit-run/ after Pages is on (or download the files).
+- **GitHub Pages:** push this folder to a repo and enable Pages on the branch/folder that contains `index.html`.
 
 ## Controls
 
