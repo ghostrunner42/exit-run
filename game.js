@@ -106,6 +106,22 @@
 
       this._held = {};
 
+      // Keep canvas focused so later keypresses don't drop (QA P1)
+      const canvas = this.game.canvas;
+      canvas.setAttribute("tabindex", "0");
+      canvas.style.outline = "none";
+      const focusCanvas = () => {
+        try {
+          canvas.focus({ preventScroll: true });
+        } catch (_) {
+          canvas.focus();
+        }
+      };
+      focusCanvas();
+      this.input.on("pointerdown", focusCanvas);
+      this._onWinFocus = () => focusCanvas();
+      window.addEventListener("focus", this._onWinFocus);
+
       this.redraw();
       this.updateHud();
       this.showMsg("Find the exit. Don't die.");
@@ -551,9 +567,27 @@
     parent: "game-container",
     backgroundColor: "#0a0a0f",
     scene: ExitRunScene,
+    // Keyboard on window so WASD works without clicking the canvas first (QA P1)
+    input: {
+      keyboard: {
+        target: window,
+      },
+    },
     scale: {
       mode: Phaser.Scale.FIT,
       autoCenter: Phaser.Scale.CENTER_BOTH,
+    },
+    callbacks: {
+      postBoot(game) {
+        const canvas = game.canvas;
+        canvas.setAttribute("tabindex", "0");
+        canvas.style.outline = "none";
+        try {
+          canvas.focus({ preventScroll: true });
+        } catch (_) {
+          canvas.focus();
+        }
+      },
     },
   };
 
