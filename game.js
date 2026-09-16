@@ -66,7 +66,7 @@
       this.message = "";
       this.messageTimer = 0;
       this.flavorShown = { charm: false, grub: false, needler: false };
-      this.bolts = []; // tiny visual projectiles {x,y,px,py,life,color}
+      this.bolts = [];
 
       this.map = this.generateMap();
       this.placeExit();
@@ -123,7 +123,6 @@
 
       this._held = {};
 
-      // Keep canvas focused so later keypresses don't drop (QA P1)
       const canvas = this.game.canvas;
       canvas.setAttribute("tabindex", "0");
       canvas.style.outline = "none";
@@ -139,7 +138,6 @@
       this._onWinFocus = () => focusCanvas();
       window.addEventListener("focus", this._onWinFocus);
 
-      // Prevent Space from scrolling the page
       this._onKeyDown = (ev) => {
         if (ev.code === "Space" || ev.key === " ") {
           ev.preventDefault();
@@ -152,14 +150,13 @@
       this.showMsg(STR.start);
     }
 
-    // ——— Map generation (rooms + corridors) ———
     generateMap() {
       const map = Array.from({ length: ROWS }, () => Array(COLS).fill(WALL));
 
       const rooms = [];
       const attempts = 12;
       for (let i = 0; i < attempts && rooms.length < 5; i++) {
-        const rw = 3 + Math.floor(Math.random() * 3); // 3–5
+        const rw = 3 + Math.floor(Math.random() * 3);
         const rh = 3 + Math.floor(Math.random() * 3);
         const rx = 1 + Math.floor(Math.random() * (COLS - rw - 1));
         const ry = 1 + Math.floor(Math.random() * (ROWS - rh - 1));
@@ -316,7 +313,6 @@
         x = pick.x;
         y = pick.y;
       }
-      // Facing = last move dir; start UP
       return {
         x,
         y,
@@ -421,7 +417,6 @@
      * Fire 1-dmg orthogonal bolt from (ox,oy) in dir.
      * Never originates on origin tile; first check is ox+dx, oy+dy.
      * Walls block. Stops on first actor (damages enemy / player).
-     * Returns {hit: 'wall'|'enemy'|'player'|'miss', x, y}.
      */
     fireBolt(ox, oy, dx, dy, opts = {}) {
       const dmg = opts.dmg != null ? opts.dmg : 1;
@@ -440,14 +435,12 @@
 
         path.push({ x, y });
 
-        // Player hit (enemy bolts)
         if (!fromPlayer && x === this.player.x && y === this.player.y) {
           this.player.hp -= dmg;
           this.spawnBoltVfx(path, color, false);
           return { hit: "player", x, y };
         }
 
-        // Enemy hit (player bolts — never damage self; bolt never on player tile)
         if (fromPlayer) {
           const target = this.enemyAt(x, y);
           if (target) {
@@ -464,7 +457,6 @@
             return { hit: "enemy", x, y, kind: target.kind };
           }
         } else {
-          // Enemy bolt can also stop on other actors (block)
           const other = this.enemyAt(x, y);
           if (other) {
             this.spawnBoltVfx(path, color, false);
@@ -479,22 +471,19 @@
 
     spawnBoltVfx(path, color, blocked) {
       if (!path || path.length === 0) return;
-      // Tiny step animation: one short-lived spark per tile in path (keep tiny)
       for (let i = 0; i < path.length; i++) {
         const p = path[i];
         this.bolts.push({
           x: p.x,
           y: p.y,
-          life: 6 + i, // stagger slightly
+          life: 6 + i,
           color,
           blocked: blocked && i === path.length - 1,
         });
       }
     }
 
-    // ——— Input & turns ———
     update() {
-      // Animate bolts even briefly after game over
       if (this.bolts.length) {
         for (const b of this.bolts) b.life -= 1;
         this.bolts = this.bolts.filter((b) => b.life > 0);
@@ -511,7 +500,6 @@
       const dir = this.pollMove();
       if (!dir) return;
 
-      // Facing updates on move attempt direction
       this.setFacing(dir.dx, dir.dy);
 
       const nx = this.player.x + dir.dx;
@@ -522,7 +510,6 @@
         return;
       }
 
-      // Bump enemy = attack
       const target = this.enemyAt(nx, ny);
       if (target) {
         target.ent.hp -= this.player.atk;
@@ -543,18 +530,15 @@
         return;
       }
 
-      // Move
       this.player.x = nx;
       this.player.y = ny;
 
-      // Fang Charm pickup
       if (this.charm && !this.charm.taken && this.charm.x === nx && this.charm.y === ny) {
         this.charm.taken = true;
         this.player.atk += 1;
         this.showMsg(STR.charmPickup);
       }
 
-      // Win: step on Exit
       if (this.map[ny][nx] === EXIT) {
         this.win();
         return;
@@ -598,7 +582,6 @@
 
     afterPlayerTurn() {
       this.playerTurns += 1;
-      // After every 2nd player turn, enemies act
       if (this.playerTurns % 2 === 0) {
         this.grubsAct();
         this.needlersAct();
@@ -679,17 +662,17 @@
       for (const n of this.needlers) {
         if (!n.alive) continue;
 
-        // If cardinal LOS clear to player (no wall between), fire bolt; else step toward
         if (this.hasCardinalLOS(n.x, n.y, this.player.x, this.player.y)) {
           const dx = Math.sign(this.player.x - n.x);
           const dy = Math.sign(this.player.y - n.y);
-          // Orthogonal only (LOS already ensures cardinal)
-          this.fireBolt(n.x, n.y, dx, dy, {
+          const result = this.fireBolt(n.x, n.y, dx, dy, {
             fromPlayer: false,
             dmg: 1,
             color: C.boltEnemy,
           });
-          this.showMsg("Needler writes. (−1 HP)");
+          if (result.hit === "player") {
+            this.showMsg("Needler writes. (−1 HP)");
+          }
           if (!this.flavorShown.needler) {
             this.flavorShown.needler = true;
             this.showMsg(STR.needler);
@@ -697,7 +680,6 @@
           continue;
         }
 
-        // Adjacent melee fallback if somehow next to player without LOS (shouldn't happen)
         const dist =
           Math.abs(this.player.x - n.x) + Math.abs(this.player.y - n.y);
         if (dist === 1) {
@@ -742,18 +724,19 @@
       this.hudText.setText(
         `HP ${this.player.hp}/${this.player.maxHp}  ATK ${this.player.atk}  Skulks ${skulks}  Needlers ${needlers}  Face ${this.facingLabel()}`
       );
-      if (this.charm && !this.charm.taken && !this.flavorShown.charm) {
+      // Plasma Fang spawn flavor once after start message has been seen (first turn)
+      if (
+        this.charm &&
+        !this.charm.taken &&
+        !this.flavorShown.charm &&
+        this.playerTurns > 0 &&
+        this.message === STR.start
+      ) {
         this.flavorShown.charm = true;
-        // Start string already shown; charm spawn can wait until next quiet moment — show once
-        // Prefer start on boot; if charm flavor not yet needed, leave start. Show charm on first HUD after start.
-        // Keep charm spawn flavor available via delayed overwrite only if message still start:
-        if (this.message === STR.start) {
-          // keep start for a beat; charm flavor on next updateHud after a move is fine
-        }
+        this.showMsg(STR.charmSpawn);
       }
     }
 
-    // ——— Draw ———
     redraw() {
       const g = this.drawLayer;
       const e = this.entityLayer;
@@ -784,7 +767,6 @@
         }
       }
 
-      // Charm
       if (this.charm && !this.charm.taken) {
         const px = this.charm.x * TILE + TILE / 2;
         const py = this.charm.y * TILE + TILE / 2;
@@ -796,7 +778,6 @@
         e.fillTriangle(px, py - 6, px - 5, py + 5, px + 5, py + 5);
       }
 
-      // Skulks
       for (const grub of this.grubs) {
         if (!grub.alive) continue;
         const px = grub.x * TILE + TILE / 2;
@@ -813,14 +794,12 @@
         }
       }
 
-      // Needlers (cyan/teal, distinct from Skulk)
       for (const n of this.needlers) {
         if (!n.alive) continue;
         const px = n.x * TILE + TILE / 2;
         const py = n.y * TILE + TILE / 2;
         const col = n.hp < 2 ? C.needlerHurt : C.needler;
         e.fillStyle(col, 1);
-        // diamond / needle silhouette
         e.fillTriangle(px, py - 16, px + 12, py, px, py + 16);
         e.fillTriangle(px, py - 16, px - 12, py, px, py + 16);
         e.fillStyle(C.needlerEye, 1);
@@ -831,7 +810,6 @@
         }
       }
 
-      // Bolts (tiny VFX)
       for (const b of this.bolts) {
         const px = b.x * TILE + TILE / 2;
         const py = b.y * TILE + TILE / 2;
@@ -842,7 +820,6 @@
         e.fillCircle(px, py, 2);
       }
 
-      // Player + facing notch
       const ppx = this.player.x * TILE + TILE / 2;
       const ppy = this.player.y * TILE + TILE / 2;
       e.fillStyle(C.playerEdge, 0.5);
@@ -852,7 +829,6 @@
       e.fillStyle(0x1a1a10, 1);
       e.fillCircle(ppx - 4, ppy - 2, 2.5);
       e.fillCircle(ppx + 4, ppy - 2, 2.5);
-      // Facing indicator (small wedge)
       const fdx = this.player.facing.dx;
       const fdy = this.player.facing.dy;
       const tipX = ppx + fdx * 16;
@@ -873,7 +849,6 @@
     parent: "game-container",
     backgroundColor: "#0a0a0f",
     scene: ExitRunScene,
-    // Keyboard on window so WASD works without clicking the canvas first (QA P1)
     input: {
       keyboard: {
         target: window,
